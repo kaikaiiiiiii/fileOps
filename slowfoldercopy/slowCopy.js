@@ -57,23 +57,24 @@ async function slowContinueCopy(src, dest, speed) {
 
     // exist and same size
     if (fs.existsSync(dest) && fs.statSync(src).size === fs.statSync(dest).size) {
-        console.log(`目标文件已存在：${dest}`);
+        console.log(`SKIP: ${dest}`);
         return;
     }
 
     const startTime = Date.now();
     const chunkSize = 1024 * 1024; // 1MB
-    let bytesCopied = 0;
+    let bytesCopied = breakpoint = 0;;
     let fileSize = fs.statSync(src).size;
+
 
     let readStream, writeStream;
     if (fs.existsSync(dest)) {
-        console.log(`续传：${dest}`)
-        let breakpoint = fs.statSync(dest).size;
+        console.log(`++ ${dest}`)
+        breakpoint = fs.statSync(dest).size;
         readStream = fs.createReadStream(src, { highWaterMark: chunkSize, start: breakpoint });
         writeStream = fs.createWriteStream(dest, { flags: 'a' });
     } else {
-        console.log(`开始拷贝：${dest}`)
+        console.log(`>> ${dest}`)
         readStream = fs.createReadStream(src, { highWaterMark: chunkSize });
         writeStream = fs.createWriteStream(dest);
     }
@@ -81,10 +82,10 @@ async function slowContinueCopy(src, dest, speed) {
     const progress = new Transform({
         transform(chunk, encoding, callback) {
             bytesCopied += chunk.length;
-            let percent = ((bytesCopied / fileSize) * 100).toFixed(2);
+            let percent = (((bytesCopied + breakpoint) / fileSize) * 100).toFixed(2);
             let hashes = '#'.repeat(Math.floor(percent / 2) + 1);
             let spaces = ' '.repeat(50 - hashes.length + 2);
-            let sizeHR = `${(bytesCopied / 1024 / 1024).toFixed(2)}MB/${(fileSize / 1024 / 1024).toFixed(2)}MB`;
+            let sizeHR = `${((bytesCopied + breakpoint) / 1024 / 1024).toFixed(2)}MB/${(fileSize / 1024 / 1024).toFixed(2)}MB`;
             let progress = `${percent}% ${hashes}${spaces}${sizeHR}\r`;
             process.stdout.write(progress);
 
