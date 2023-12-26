@@ -5,12 +5,17 @@ const { Transform } = require('stream');
 //////////////////////////////////////////////////
 
 const from = process.argv[2] || 'f:\\downloads';
-const to = process.argv[3] || 'd:\\downloads';
+const to = process.argv[3] || 'd:\\'
 const spd = process.argv[4] * 1024 * 1024 || 10 * 1024 * 1024;
+const moveflag = process.argv[5] === 'move'
 
-recCopy(from, to, spd)
+if (!fs.existsSync(from)) return;
+
+recCopy(from, path.join(to, path.basename(from)), spd)
     .then(() => console.log('拷贝完成'))
     .catch((err) => console.error(err));
+
+
 
 
 //////////////////////////////////////////////////
@@ -34,7 +39,7 @@ async function recCopy(src, dest, speed) {
             await recCopy(srcEntryPath, destEntryPath, speed);
         }
 
-        if (process.argv[5] === 'move') {
+        if (moveflag) {
             if (path.basename(srcPath) != "Anime") fs.rmdirSync(srcPath);
         }
 
@@ -43,12 +48,20 @@ async function recCopy(src, dest, speed) {
         // symlink not tested
         const srcTarget = fs.readlinkSync(srcPath);
         fs.symlinkSync(srcTarget, destPath);
-        if (process.argv[5] === 'move') fs.unlinkSync(srcPath)
+        if (moveflag) fs.unlinkSync(srcPath)
 
     } else if (srcStat.isFile()) {
 
-        await slowContinueCopy(srcPath, destPath, speed);
-        if (process.argv[5] === 'move') fs.unlinkSync(srcPath)
+        let start = Date.now();
+        let copiedBytes = await slowContinueCopy(srcPath, destPath, speed);
+
+        if (copiedBytes > 0) {
+            let copiedMB = (copiedBytes / 1024 / 1024).toFixed(2);
+            let timeUsed = Date.now() - start;
+            console.log(`\n${copiedMB}MB for ${(timeUsed / 1000).toFixed(2)}s, in ${((copiedBytes / timeUsed) * 1000 / 1024 / 1024).toFixed(2)}MB/s`)
+        }
+
+        if (moveflag) fs.unlinkSync(srcPath)
     }
 }
 
@@ -57,24 +70,24 @@ async function slowContinueCopy(src, dest, speed) {
 
     // exist and same size
     if (fs.existsSync(dest) && fs.statSync(src).size === fs.statSync(dest).size) {
-        console.log(`SKIP: ${dest}`);
-        return;
+        console.log(`//: ${dest}`);
+        return 0;
     }
 
     const startTime = Date.now();
     const chunkSize = 1024 * 1024; // 1MB
-    let bytesCopied = breakpoint = 0;;
+    let bytesCopied = 0, breakpoint = 0;;
     let fileSize = fs.statSync(src).size;
 
 
     let readStream, writeStream;
     if (fs.existsSync(dest)) {
-        console.log(`++ ${dest}`)
+        console.log(`++: ${dest}`)
         breakpoint = fs.statSync(dest).size;
         readStream = fs.createReadStream(src, { highWaterMark: chunkSize, start: breakpoint });
         writeStream = fs.createWriteStream(dest, { flags: 'a' });
     } else {
-        console.log(`>> ${dest}`)
+        console.log(`>>: ${dest}`)
         readStream = fs.createReadStream(src, { highWaterMark: chunkSize });
         writeStream = fs.createWriteStream(dest);
     }
@@ -102,8 +115,8 @@ async function slowContinueCopy(src, dest, speed) {
     readStream.pipe(progress).pipe(writeStream);
 
     return new Promise((resolve, reject) => {
-        writeStream.on('finish', resolve);
-        writeStream.on('error', reject);
+        writeStream.on('finish', () => resolve(bytesCopied));
+        writeStream.on('error', (err) => reject(err));
     });
 
 }
