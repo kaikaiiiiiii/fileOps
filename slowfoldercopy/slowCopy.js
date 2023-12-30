@@ -4,27 +4,71 @@ const { Transform } = require('stream');
 
 //////////////////////////////////////////////////
 
-const from = process.argv[2] || 'f:\\downloads';
-const to = process.argv[3] || 'd:\\'
-const spd = process.argv[4] * 1024 * 1024 || 10 * 1024 * 1024;
-const moveflag = process.argv[5] === 'move'
+function parseArgs(args) {
+    let args = process.argv.slice(2);
 
-if (!fs.existsSync(from)) return;
+    function printHelp() {
+        console.log('Usage: node slowCopy.js [from1 from2 ... to] <speed> <speedNumber> <moveflag>');
+        console.log('Example: node slowCopy.js f:\\downloads e:\\downloads d:\\ -s 10 -m');
+        console.log('## You can use -s or --speed to set speed, -m or --move to move files');
+        process.exit(0);
+    }
+    // check help
+    if (args.findIndex((arg) => arg === '--help' || arg === '-h' || arg === '-help') > -1) {
+        printHelp();
+    }
 
-recCopy(from, path.join(to, path.basename(from)), spd)
+    if (args.length < 2) {
+        printHelp();
+    }
+
+    // check args
+    let moveindex = args.findIndex((arg) => arg === '--move' || arg === '-m' || arg === '-move');
+    let moveflag = moveindex > -1 ? true : false;
+    if (moveflag) args.splice(moveindex, 1);
+
+    let speedindex = args.findIndex((arg) => arg === '--speed' || arg === '-s' || arg === '-speed');
+    let speed = 10 * 1024 * 1024;
+    if (speedindex > -1) {
+        let speedNumber = parseInt(args[speedindex + 1]) * 1024 * 1024;
+        if (speedNumber > 0) {
+            speed = speedNumber;
+            args.splice(speedindex, 2);
+        } else {
+            console.log(`Can't read speed number after '-s' flag, use default speed ${speed / 1024 / 1024}MB/s`);
+            args.splice(speedindex, 1);
+        }
+    }
+
+    return { froms: args.slice(0, -1), to: args.slice(-1)[0], speed, moveflag };
+}
+
+let { froms, to, speed, moveflag } = parseArgs();
+
+//////////////////////////////////////////////////
+
+async function main(multisrcs, dest, speedinbytes, mflag) {
+    for (let from of multisrcs) {
+        await recursiveOps(from, path.join(dest, path.basename(from)), speedinbytes, mflag)
+    }
+}
+
+main(froms, to, speed, moveflag)
     .then(() => console.log('拷贝完成'))
     .catch((err) => console.error(err));
-
-
-
 
 //////////////////////////////////////////////////
 
 
-async function recCopy(src, dest, speed) {
+async function recursiveOps(src, dest, speed, mflag) {
 
     // speed in bytes per second
     const srcPath = path.resolve(src);
+    if (!fs.existsSync(srcPath)) {
+        console.log(`Source path ${src} not exist`);
+        return;
+    }
+
     const destPath = path.resolve(dest);
     const srcStat = fs.lstatSync(srcPath);
 
@@ -36,19 +80,17 @@ async function recCopy(src, dest, speed) {
         for (let entry of entries) {
             const srcEntryPath = path.join(srcPath, entry.name);
             const destEntryPath = path.join(destPath, entry.name);
-            await recCopy(srcEntryPath, destEntryPath, speed);
+            await recursiveOps(srcEntryPath, destEntryPath, speed);
         }
 
-        if (moveflag) {
-            if (path.basename(srcPath) != "Anime") fs.rmdirSync(srcPath);
-        }
+        if (mflag) { fs.rmdirSync(srcPath) }
 
     } else if (srcStat.isSymbolicLink()) {
 
         // symlink not tested
         const srcTarget = fs.readlinkSync(srcPath);
         fs.symlinkSync(srcTarget, destPath);
-        if (moveflag) fs.unlinkSync(srcPath)
+        if (mflag) fs.unlinkSync(srcPath)
 
     } else if (srcStat.isFile()) {
 
@@ -61,7 +103,7 @@ async function recCopy(src, dest, speed) {
             console.log(`\n${copiedMB}MB for ${(timeUsed / 1000).toFixed(2)}s, in ${((copiedBytes / timeUsed) * 1000 / 1024 / 1024).toFixed(2)}MB/s`)
         }
 
-        if (moveflag) fs.unlinkSync(srcPath)
+        if (mflag) fs.unlinkSync(srcPath)
     }
 }
 
