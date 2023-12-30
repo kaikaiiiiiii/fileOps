@@ -112,7 +112,12 @@ async function slowContinueCopy(src, dest, speed) {
 
     // exist and same size
     if (fs.existsSync(dest) && fs.statSync(src).size === fs.statSync(dest).size) {
-        console.log(`//: ${dest}`);
+        console.log(`--: ${dest}`);
+        return 0;
+    }
+
+    if (!fs.existsSync(src)) {
+        console.log(`Source file ${src} not exist, skip`);
         return 0;
     }
 
