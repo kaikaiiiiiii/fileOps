@@ -4,7 +4,7 @@ const { Transform } = require('stream');
 
 //////////////////////////////////////////////////
 
-function parseArgs(args) {
+function parseArgs() {
     let args = process.argv.slice(2);
 
     function printHelp() {
