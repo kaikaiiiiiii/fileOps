@@ -4,9 +4,9 @@ const fs = require('fs')
 const path = require('path')
 
 const target = process.argv[2]
-const length = process.argv[3] || 4096
+const length = parseInt(process.argv[3]) || 1024
 
-const replace = (target, length = 4096) => {
+const replace = (target, length = 1024) => {
     if (!fs.existsSync(target)) { return false }
 
     const existfilesize = fs.statSync(target).size
@@ -32,5 +32,14 @@ function walkSync(dir) {
     })
 }
 
-walkSync(target)
+function main(target) {
+    if (fs.statSync(target).isFile()) {
+        replace(target, length)
+    } else if (fs.statSync(target).isDirectory()) {
+        walkSync(target)
+    } else {
+        console.log('Please input a file or folder path.')
+    }
+}
 
+main(target)
