@@ -1,8 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 
-var targetPath = 'F:\\Anime Episodes'
-var CRC8reg = /[0-9A-F]{8}/i;
+let targetPath = process.argv[2] || 'F:\\Anime Episodes';
+let CRC8reg = /[0-9A-F]{8}/i;
 
 function escapeRegExp(string) {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string

@@ -80,7 +80,7 @@ async function recursiveOps(src, dest, speed, mflag) {
         for (let entry of entries) {
             const srcEntryPath = path.join(srcPath, entry.name);
             const destEntryPath = path.join(destPath, entry.name);
-            await recursiveOps(srcEntryPath, destEntryPath, speed);
+            await recursiveOps(srcEntryPath, destEntryPath, speed, mflag);
         }
 
         if (mflag) { fs.rmdirSync(srcPath) }
@@ -103,7 +103,14 @@ async function recursiveOps(src, dest, speed, mflag) {
             console.log(`\n${copiedMB}MB for ${(timeUsed / 1000).toFixed(2)}s, in ${((copiedBytes / timeUsed) * 1000 / 1024 / 1024).toFixed(2)}MB/s`)
         }
 
-        if (mflag) fs.unlinkSync(srcPath)
+        if (mflag) {
+            try {
+                fs.unlinkSync(srcPath)
+            } catch (error) {
+                console.log(`ERR: ${error.message}`)
+            }
+
+        }
     }
 }
 
@@ -122,7 +129,7 @@ async function slowContinueCopy(src, dest, speed) {
     }
 
     const startTime = Date.now();
-    const chunkSize = 1024 * 1024; // 1MB
+    const chunkSize = 4 * 1024 * 1024;
     let bytesCopied = 0, breakpoint = 0;;
     let fileSize = fs.statSync(src).size;
 
