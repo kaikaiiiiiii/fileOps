@@ -2,5 +2,5 @@
 
 chcp 65001
 
-node .\slowCopy.js "G:\Arc" "E:\Arc" 20 move
+node .\slowCopy.js "f:\a" "f:\b" "F:\c" "G:\x" -s 50 -m
 
