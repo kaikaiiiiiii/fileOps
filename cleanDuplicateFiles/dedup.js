@@ -4,12 +4,12 @@ const path = require('path')
 
 
 // const folders = ['Z:\\D\\2023\\Two Steps From Hell - FLAC - Discography', 'Z:\\D\\Two Steps From Hell - FLAC - Discography']
-const folders = ['D:\\adobe\\1']
+const folders = ["F:\\Life.Step\\Mininglamp", "F:\\SandCard"]
 
 
 function cleanDup(pathArr, config) {
     const conf = config || {
-        isDelete: false,
+        isDelete: true,
         minSize: 0,
         ignoreName: false,
         showFile: false,

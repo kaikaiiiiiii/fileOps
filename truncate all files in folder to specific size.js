@@ -46,21 +46,16 @@ let { list, size } = parseArgs();
 
 //////////////////////////////////////////////////////////
 
-function main(target, size) {
-    if (target === undefined) return false
-
-    if (typeof target === 'string') target = [target]
-
-    for (let item of target) {
-        walkSync(item, size)
+const replace = (target, length = 1024) => {
+    if (!fs.existsSync(target)) { return false }
+    const existfilesize = fs.statSync(target).size
+    if (existfilesize <= length) {
+        return existfilesize
+    } else {
+        fs.truncateSync(target, length)
+        return length
     }
-
 }
-
-main(list, size)
-
-//////////////////////////////////////////////////////////
-
 
 function walkSync(dir, size) {
     if (!fs.existsSync(dir)) return console.log(`Path not exist: ${dir}`)
@@ -79,13 +74,17 @@ function walkSync(dir, size) {
 }
 
 
-const replace = (target, length = 1024) => {
-    if (!fs.existsSync(target)) { return false }
-    const existfilesize = fs.statSync(target).size
-    if (existfilesize <= length) {
-        return existfilesize
-    } else {
-        fs.truncateSync(target, length)
-        return length
+//////////////////////////////////////////////////////////
+
+function main(target, size) {
+    if (target === undefined) return false
+
+    if (typeof target === 'string') target = [target]
+
+    for (let item of target) {
+        walkSync(item, size)
     }
+
 }
+
+main(list, size)
