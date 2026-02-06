@@ -2,7 +2,6 @@ const fs = require('fs');
 const path = require('path');
 
 const directory = process.argv[2] || __dirname; // 指定目录路径
-let fileSize = 1 * 1024 * 1024 * 1024; // 文件大小为1GB
 const del = process.argv[3] == 'del' ? true : false; // 是否删除已存在的文件
 
 
@@ -13,11 +12,12 @@ let initTime = new Date().getTime(); // 记录开始时间
 let startTime = initTime; // 记录每次生成文件的时间
 let worstspeed = 0;
 
-let sizeSelector = [1 * 1024 * 1024 * 1024, 1 * 1024 * 1024, 100 * 1024, fs.statfsSync(directory).bsize]
+let sizeSelector = [1024 * 1024 * 1024, 1 * 1024 * 1024, 100 * 1024, fs.statfsSync(directory).bsize]
 let smaller = (now, selector) => selector.filter(item => item < now).reduce((a, b) => a > b ? a : b, selector[0])
 
 while (true) {
 
+    let fileSize = 0;
     let stat = fs.statfsSync(directory);
     let freespace = stat.bavail * stat.bsize;
     fileSize = smaller(freespace, sizeSelector) || 1;
