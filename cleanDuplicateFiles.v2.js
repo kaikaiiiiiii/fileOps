@@ -58,8 +58,8 @@ async function cleanDup(paths, config) {
                             // 计算当前文件的headmd5
                             const headReadSize = Math.min(1024 * 1024, fileSize);
                             const currentHeadMD5 = await computeMD5(fullPath, headReadSize);
-                            const currentMD5 = null; // 延迟计算
-                            const sameflag = false;
+                            let currentMD5 = null; // 延迟计算
+                            let sameflag = false;
 
                             for (const entry of existingEntrys) {
                                 if (entry.headmd5 === null) entry.headmd5 = await computeMD5(entry.path, headReadSize);
