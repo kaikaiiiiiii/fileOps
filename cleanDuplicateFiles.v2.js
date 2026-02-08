@@ -12,14 +12,18 @@ async function cleanDup(paths, config) {
     }, config);
 
     const filesDict = {};
+
     let totalSize = 0;
 
-    // 流式计算 MD5
-    const computeMD5 = (filePath) => {
+    const computeMD5 = (filePath, readSize) => {
         return new Promise((resolve, reject) => {
             const hash = crypto.createHash('md5');
-            const stream = createReadStream(filePath);
-
+            let stream;
+            if (readSize === undefined || readSize == false || readSize <= 0) {
+                stream = createReadStream(filePath);
+            } else {
+                stream = createReadStream(filePath, { end: readSize - 1 })
+            }
             stream.on('data', (chunk) => hash.update(chunk));
             stream.on('end', () => resolve(hash.digest('hex')));
             stream.on('error', reject);
@@ -31,7 +35,6 @@ async function cleanDup(paths, config) {
         try {
             const entries = await fs.readdir(dir, { withFileTypes: true });
 
-            // 先处理所有文件和子目录
             for (const entry of entries) {
                 const fullPath = path.join(dir, entry.name);
 
@@ -40,47 +43,62 @@ async function cleanDup(paths, config) {
                 } else {
                     try {
                         const stats = await fs.stat(fullPath);
+
                         if (conf.minSize && stats.size < conf.minSize) continue;
 
                         const fileName = entry.name;
                         const fileSize = stats.size;
                         const fileKey = conf.ignoreName ? fileSize : `${fileName}_${fileSize}`;
 
-                        if (conf.showFile) {
-                            console.log(conf.ignoreName
-                                ? `(${fileSize}) ${fullPath}`
-                                : fileKey);
-                        }
+                        if (conf.showFile) { `(${fileSize}) ${fullPath}` }
 
-                        if (filesDict[fileKey]) {
-                            const currentMD5 = await computeMD5(fullPath);
-                            const existingEntry = filesDict[fileKey];
+                        if (filesDict[fileKey]) {  // 此时已经 filekey dup
 
-                            // 补全已有文件的 MD5
-                            if (!existingEntry.md5) {
-                                existingEntry.md5 = await computeMD5(existingEntry.path);
+                            const existingEntrys = filesDict[fileKey];
+                            // 计算当前文件的headmd5
+                            const headReadSize = Math.min(1024 * 1024, fileSize);
+                            const currentHeadMD5 = await computeMD5(fullPath, headReadSize);
+                            const currentMD5 = null; // 延迟计算
+                            const sameflag = false;
+
+                            for (const entry of existingEntrys) {
+                                if (entry.headmd5 === null) entry.headmd5 = await computeMD5(entry.path, headReadSize);
+                                if (entry.headmd5 === currentHeadMD5) {
+                                    if (entry.md5 === null) entry.md5 = await computeMD5(entry.path);
+                                    if (currentMD5 === null) currentMD5 = await computeMD5(fullPath);
+                                    if (entry.md5 === currentMD5) {
+                                        sameflag = true;
+                                        if (conf.isDelete) {
+                                            await fs.unlink(fullPath);
+                                            console.log(`DEL: ${fullPath} <-- ${entry.path})`);
+                                            break;
+                                        } else {
+                                            entry.isDuplicate = true;
+                                            console.log(`DUP: ${fullPath} <=> ${entry.path})`);
+                                        }
+                                        totalSize += fileSize;
+                                    }
+                                }
                             }
 
-                            if (currentMD5 === existingEntry.md5) {
-                                if (conf.isDelete) {
-                                    console.log(`DELETE: ${fullPath} (duplicate of ${existingEntry.path})`);
-                                    await fs.unlink(fullPath);
-                                } else {
-                                    console.log(`DUPLICATE: ${fullPath} = ${existingEntry.path} [${fileSize} bytes]`);
-                                    totalSize += fileSize;
-                                }
-                            } else {
-                                filesDict[fileKey] = {
+                            if (sameflag === false) {
+                                filesDict[fileKey].push({
                                     path: fullPath,
+                                    size: fileSize,
+                                    headmd5: currentHeadMD5,
                                     md5: currentMD5,
                                     isDuplicate: false
-                                };
+                                });
                             }
+
                         } else {
-                            filesDict[fileKey] = {
+                            filesDict[fileKey] = [{
                                 path: fullPath,
-                                md5: null  // 延迟计算
-                            };
+                                size: fileSize,
+                                headmd5: null,  // 延迟计算headmd5
+                                md5: null,  // 延迟计算全文件MD5
+                                isDuplicate: false
+                            }]
                         }
                     } catch (err) {
                         console.error(`Error processing ${fullPath}:`, err.message);
@@ -121,9 +139,10 @@ async function cleanDup(paths, config) {
     if (!conf.isDelete) {
         console.log(`Total duplicate size: ${(totalSize / 1024 / 1024).toFixed(2)} MB`);
     }
+    console.log(filesDict)
 }
 
-// 主程序
+// 主程序保持不变
 (async () => {
     const args = process.argv.slice(2);
     if (args.length === 0) {
