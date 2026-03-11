@@ -36,13 +36,17 @@ if (remainder > 0) {
 }
 
 // 循环写入所有计划的文件
-for (let plannedSize of fileSizes) {
+let sizeIndex = 0;
+while (sizeIndex < fileSizes.length) {
+    const plannedSize = fileSizes[sizeIndex];
     try {
         const filePath = path.join(directory, `空间写入测试文件 ${fileIndex.toString().padStart(4, '0')}.del`); // 构造文件路径
 
         if (fs.existsSync(filePath)) {
-            console.log(`${filePath} 已存在，跳过到下一个。`);
+            console.log(`${filePath} 已存在，跳过到下一个，将该大小 ${(plannedSize / 1024 / 1024 / 1024).toFixed(3)} GB 重新加入队列。`);
             fileIndex++;
+            fileSizes.push(plannedSize); // 重新加入队列，确保总写入量不变
+            sizeIndex++;
             continue;
         }
 
@@ -50,6 +54,7 @@ for (let plannedSize of fileSizes) {
         fs.writeFileSync(filePath, buffer); // 写入文件
 
         fileIndex++; // 文件编号自增
+        sizeIndex++; // 移向下一个计划的大小
         totalSize += plannedSize; // 计算总文件大小
 
         let currentTime = new Date().getTime(); // 记录当前时间
