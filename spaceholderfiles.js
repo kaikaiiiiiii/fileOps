@@ -65,7 +65,8 @@ while (sizeIndex < fileSizes.length) {
         startTime = currentTime; // 更新上次生成文件的时间
         let totalSpeed = Math.round(totalSize / (currentTime - initTime) * 1000 / 1024 / 1024 * 1000) / 1000; // 计算总速度
         if (worstspeed == 0 || speed < worstspeed) worstspeed = speed; // 记录最慢速度
-        let info = `${filePath}: ${hsize} on ${usedTime}s, ${speed} MB/s. 最低速度: ${worstspeed} MB/S, 总速度: ${totalSpeed} MB/S`; // 输出生成的文件路径和速度
+        let progress = `${fileIndex - 1}/${fileSizes.length}`;
+        let info = `[${progress}] ${filePath}: ${hsize} on ${usedTime}s, ${speed}. Lwst: ${worstspeed} , Oval: ${totalSpeed} MB/S`; // 输出生成的文件路径和速度
 
         console.log(info); // 打印信息
         fs.appendFileSync('log.txt', info + '\n'); // 将信息写入日志文件
